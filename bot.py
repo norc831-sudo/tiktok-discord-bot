@@ -1,23 +1,48 @@
 import requests
-import json
 import os
+import json
 
 USERNAME = "streams.clip"
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK"]
 
-API_URL = f"https://www.tikwm.com/api/user/posts?unique_id={USERNAME}"
+API_URL = f"https://r.jina.ai/https://www.tiktok.com/@{USERNAME}"
 
-r = requests.get(API_URL).json()
-latest = r["data"]["videos"][0]
+headers = {
+    "User-Agent": "Mozilla/5.0"
+}
 
-video_url = f"https://www.tiktok.com/@{USERNAME}/video/{latest['video_id']}"
+response = requests.get(API_URL, headers=headers, timeout=20)
 
-with open("last.txt", "r") as f:
-    last = f.read().strip()
+if response.status_code != 200:
+    print("Failed to fetch TikTok page")
+    exit(0)
 
-if latest["video_id"] != last:
+text = response.text
+
+# Find latest video ID in page
+import re
+matches = re.findall(r'"id":"(\d{19})"', text)
+
+if not matches:
+    print("No videos found")
+    exit(0)
+
+latest_id = matches[0]
+video_url = f"https://www.tiktok.com/@{USERNAME}/video/{latest_id}"
+
+# Read last posted ID
+try:
+    with open("last.txt", "r") as f:
+        last = f.read().strip()
+except:
+    last = ""
+
+if latest_id != last:
     requests.post(WEBHOOK_URL, json={
-        "content": f"🔥 New TikTok posted!\n{video_url}"
+        "content": f"🔥 **New TikTok Posted!**\n{video_url}"
     })
     with open("last.txt", "w") as f:
-        f.write(latest["video_id"])
+        f.write(latest_id)
+    print("Posted new video")
+else:
+    print("No new video")
